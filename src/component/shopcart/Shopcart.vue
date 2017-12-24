@@ -48,6 +48,28 @@
                                 <!-- 表头 -->
                                 <tr>
                                     <th width="48" align="center">
+                                        <!-- 
+                                        1.在原生html中view的所有方法默认值event或者实参$event拿到得是事件对象，传参xx,xx($event)能取到事件对象。xx()，xx(a,b)取不到世界对象
+                                        2.在vue里面inputNumber的Events
+                                        事件名称	说明	回调参数
+                                        change	绑定值被改变时触发	最后变更的值
+                                        blur	在组件 Input 失去焦点时触发	(event: Event)
+                                        focus	在组件 Input 获得焦点时触发	(event: Event)
+                                        2.1 switch Events
+                                        事件名称	说明	回调参数
+                                        change	switch 状态发生变化时的回调函数	新状态的值 -->
+
+                                        <!--思路，因为v-model无法绑定计算属性，计算属性只能使求值得出来的。原本可以全选<->控制列表开关数据计算属性<->列表开关
+                                        虽然文档没有value属性，只要可以v-model的那就都有value属性,因为v-model操作的就是value属性
+                                        单向绑定 数据改变控件 :value
+                                        列表开关数据值->全选
+                                        因为计算属性不能用双向，而单向绑定只能数据改变控件。实现控件改变数据只能用change绑定事件手动改数据
+                                        全选->列表开关数据值->列表开关（列表开关双向绑定，数据影响控件）
+
+                                        代替双向绑定v-model:用计算属性输出，然后事件改变计算属性，让两者分开，各管各，任何复杂问题都可以拆分一个个小单元
+                                        -->
+
+                                        <!-- <el-switch v-model="isSelectedAll" active-color="#13ce66"></el-switch> -->
                                         <!-- 设置value属性 -->
                                         <el-switch :value="allSwitchState" @change="switchAllChange" active-color="#13ce66"></el-switch>
                                     </th>
@@ -61,6 +83,7 @@
                                 <!-- 商品列表 -->
                                 <tr v-for="item in goodsList" :key="item.id">
                                     <td width="48" align="center">
+                                        <!--  -->
                                         <el-switch v-model="item.selected" active-color="#13ce66"></el-switch>
                                     </td>
                                     <td align="left" colspan="2">
@@ -70,6 +93,21 @@
                                     <td width="84" align="left">
                                         ￥{{ item.sell_price }}
                                     </td>
+                                    <!-- change直接调用代码段 ，以前locastrong的值变为页面默认值，之前的值丢了，而且同步有问题，值少了1，-->
+                                    <!-- 页面默认值是1，不应该一开始都是是1，而是应该从本地Locastrong（也就是全局）里面取 -->
+                                    <!-- 原因页面默认值从后台取 后台查询接口返回的就是个0，不准确，而更新操作取值是取全局locastrong，而且更新操作是操作全局locastrong,因为没有更新购物车接口更新后台数据，这里用本地数据代替 -->
+                                   <!-- 这里全局和本页面统一改为用locastrong取值，以后正式全局和本页面改为用接口查询，数据添加和修改调用接口 -->
+                                    <!-- 统一用locastrong后:还是有问题之前的值丢了，而且页面和数据同步有问题，数据值少了1，第一次点击的时候页面数据刷新了加上1，但本地数据没变 -->
+                                    <!-- 解决方法:因为模板里面v-model取值快已经拿到最新值,但是change直接使用的语句接收到的值延迟,使用change再回调里面接收到的item.buycount才是最新的值 -->
+                                    <!-- 在回调里面接收最新的值，那一定准确，在change语句行写接收的值不准确 -->
+                                    <!-- 第一次localstrong没加上，但v-model取值已经加了 -->
+                                    <!-- input-number:Events
+                                    事件名称	说明	回调参数
+                                    change	绑定值被改变时触发	最后变更的值 -->
+                                     <!-- <td width="104" align="center">
+                                        <el-input-number v-model="item.buycount" @change="$store.commit('upShopcartData',{id:item.id,val:item.buycount})"
+                                            size="mini" :min="1"></el-input-number>
+                                    </td> -->
                                     <td width="104" align="center">
                                         <el-input-number v-model="item.buycount" @change="numberChange(item.id, $event)"
                                             size="mini" :min="1"></el-input-number>
@@ -132,7 +170,16 @@
                 goodsList: []
             }
         },
-
+        // 一个列表拿到一个值用:reduce
+        // 参数	描述
+        // function(total,currentValue, index,arr)	必需。用于执行每个数组元素的函数。
+        // 函数参数:
+        // 参数	描述
+        // total	必需。初始值, 或者计算结束后的返回值。
+        // currentValue	必需。当前元素
+        // currentIndex	可选。当前元素的索引
+        // arr	可选。当前元素所属的数组对象。
+        // initialValue	可选。传递给函数的初始值
         computed: {
             // 选取的商品总数
             // 1 遍历商品列表
@@ -147,13 +194,17 @@
             selectedShopcartTotalPrice() {
                 return this.goodsList.reduce((s, v) => v.selected? s + v.sell_price * v.buycount: s, 0);
             },
-
+           
+            // var arr=[2,4,6];
+            // arr.every(v=>v%2==0) 返回true 相当于arr.every(v=>{表达式值为true}})
+           // var arr=[2,4,6，1];
+            // arr.every(v=>v%2==0) 返回false 相当于arr.every(v=>{表达式值为false}})
             // 全选swtich的状态
             allSwitchState() {
                 return this.goodsList.every(v => v.selected);
             }
         },
-
+       
         methods: {
             // 全选awitch切换
             switchAllChange(bol) {
@@ -167,7 +218,7 @@
                         rsp.data.message.forEach(goods => {
                             // 给请求回来的每个商品对象添加一个selected属性, 用于绑定Switch开关
                             goods.selected = true;
-                            
+                            // 后台返回的就是个0，不准确，因为没有更新购物车接口更新后台数据，这里用本地数据代替
                             // 后台返回的buycount属性不正确, 我们给他修正一下
                             goods.buycount = this.$store.getters.getShopcartData[goods.id];
                         });
@@ -178,6 +229,7 @@
             // 数字输入框变化时执行该方法
             // 方法需要拿到商品ID与新的购买数值
             numberChange(id, val) {
+                // upShopcartData使用直接修改，不是累加
                 this.$store.commit('upShopcartData', { id: id, val: val });
             },
 
